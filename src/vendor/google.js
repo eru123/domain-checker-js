@@ -1,4 +1,5 @@
-import axios from 'axios';
+const parseQuery = require('../lib/parseQuery')
+const https = require('follow-redirects').https;
 
 const scrape = (items) => {
   const result = []
@@ -30,54 +31,45 @@ const scrape = (items) => {
   return result
 }
 
-export default async function (opts) {
-  const { tld, domain, cors } = opts;
-  const query = tld ? `${domain}.${tld}` : domain;
-  const url = (cors || "") + "https://domains.google.com/v1/Main/FeSearchService/Search"
-  const website = "https://domains.google.com"
-  const title = "Google Domains"
+const request = (query) => {
+  return new Promise((resolve, reject) => {
+    const { domain, tld } = parseQuery(query)
 
-  // RESPONSE FORMAT
-  const res = {
-    success: false,
-    error: false,
-    message: "",
-    website,
-    title,
-    result: [],
-  }
+    let options = {
+      'method': 'POST',
+      'hostname': 'domains.google.com',
+      'path': '/v1/Main/FeSearchService/Search',
+      'headers': { 'Content-Type': 'application/json' },
+      'maxRedirects': 20
+    };
 
-  return await axios({
-    url,
-    headers: { "Content-Type": "application/json" },
-    data: JSON.stringify({
+    let req = https.request(options, (res) => {
+      let chunks = [];
+      res.on("data", (chunk) => chunks.push(chunk));
+      res.on("end", () => resolve(Buffer.concat(chunks).toString()));
+      res.on("error", (err) => reject(err));
+    });
+
+    let postData = JSON.stringify({
       "clientFilters": {},
       "clientUserSpec": {
         "countryCode": "PH",
         "currencyCode": "USD"
       },
       "debugType": "DEBUG_TYPE_NONE",
-      "query": query
-    }),
-    method: "POST",
-    transformResponse: (res) => {
-      // remove the first 4 characters, trim, and parse to JSON
-      return JSON.parse(String(res).slice(4).trim());
-    },
-    responseType: 'json'
+      "query": tld ? `${domain}.${tld}` : domain
+    });
+
+    req.write(postData);
+    req.setTimeout(1000, () => req.end());
+    req.end();
   })
-    .then(e => {
-      res.result = scrape(e.data?.searchResponse?.results?.result)
-      res.success = true;
-      res.error = false;
-      res.message = "Successfully checked domain availability."
-      return res
-    })
-    .catch(() => {
-      res.success = false;
-      res.error = true;
-      res.message = "Error checking domain availability."
-      res.result = []
-      return res
-    })
+}
+
+module.exports = async (query) => {
+  const response = await request(query)
+  const re = /^\)]}'/;
+  const json = response.replace(re, '').trim()
+  const items = JSON.parse(json)
+  return scrape(items?.searchResponse?.results?.result)
 }
