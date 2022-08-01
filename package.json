@@ -1,6 +1,6 @@
 {
   "name": "@skiddph/domain-checker",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Check domain availability and prices across different domain resellers and registrar",
   "main": "src/index.js",
   "scripts": {
@@ -24,6 +24,6 @@
   },
   "homepage": "https://github.com/skiddph/domain-checker-js#readme",
   "dependencies": {
-    "axios": "^0.26.0"
+    "follow-redirects": "^1.15.1"
   }
 }
