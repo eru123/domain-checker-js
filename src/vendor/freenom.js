@@ -1,4 +1,5 @@
-import axios from 'axios';
+const parseQuery = require('../lib/parseQuery')
+const https = require('follow-redirects').https;
 
 const scrape = (tlds) => {
   const result = []
@@ -14,41 +15,38 @@ const scrape = (tlds) => {
   return result
 }
 
-export default async function (opts) {
-  const { tld, domain } = opts;
-  const url = "https://my.freenom.com/includes/domains/fn-available.php"
-  const website = "https://www.freenom.com"
-  const title = "Freenom"
+const search = async (query) => new Promise((resolve, reject) => {
+  const { tld, domain } = parseQuery(query)
+  const options = {
+    'method': 'POST',
+    'hostname': 'my.freenom.com',
+    'path': '/includes/domains/fn-available.php',
+    'headers': {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    'maxRedirects': 20
+  };
 
-  // RESPONSE FORMAT
-  const res = {
-    success: false,
-    error: false,
-    message: "",
-    website,
-    title,
-    result: [],
-  }
-
-  return await axios({
-    url,
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    data: `domain=${domain}${tld ? '&tld=' + tld : ''}`,
-    method: "POST"
+  const req = https.request(options, (res) => {
+    const chunks = [];
+    res.on("data", (chunk) => chunks.push(chunk))
+    res.on("end", () => {
+      let data = JSON.parse(Buffer.concat(chunks).toString())
+      let tlds = []; if (data?.top_domain && !data?.top_domain.dont_show) tlds.push(data.top_domain);
+      let result = scrape([...tlds, ...data?.free_domains, ...data?.paid_domains])
+      resolve(result)
+    })
+    res.on("error", (err) => reject(err));
   })
-    .then(e => {
-      let tlds = []; if (e.data?.top_domain && !e.data?.top_domain.dont_show) tlds.push(e.data.top_domain);
-      res.result = scrape([ ...tlds, ...e.data?.free_domains, ...e.data?.paid_domains ])
-      res.success = true;
-      res.error = false;
-      res.message = "Successfully checked domain availability."
-      return res
-    })
-    .catch(() => {
-      res.success = false;
-      res.error = true;
-      res.message = "Error checking domain availability."
-      res.result = []
-      return res
-    })
+
+  const postData = new URLSearchParams()
+  postData.append('domain', domain)
+  postData.append('tld', tld)
+  req.write(postData.toString());
+  req.end();
+})
+
+module.exports = async (query) => {
+  const res = await search(query)
+  return res
 }
