@@ -1,5 +1,6 @@
-import { ParseQueryError } from './Errors.js';
-export default (query) => {
+const { ParseQueryError } = require('./Errors');
+
+module.exports = (query) => {
   query = query.trim();
   const dots = query.match(/\./g)?.length || 0
   if (dots === 0) {
@@ -10,7 +11,7 @@ export default (query) => {
       }
     }
   } else if (dots === 1) {
-    const [ domain, tld ] = query.split('.');
+    const [domain, tld] = query.split('.');
     if (domain.match(/[a-zA-Z0-9-_]/) && tld.match(/[a-zA-Z]/)) {
       return {
         domain,
