@@ -5,7 +5,7 @@ import google from './vendor/google.js'
 
 export const methods = {
   freenom,
-  namesilo,
+  namesilo, 
   google
 }
 

@@ -16,8 +16,12 @@ module.exports.installVendors = (vendors = {}) => {
         // parse query
         const { domain, tld } = parseQuery(query)
         const res = {}
-        for (let vendor of vendors) res[vendor] = await installed[vendor](domain, tld)
-        console.log(res)
+        for (let vendor of vendors) {
+            console.log(`Searching ${vendor} for ${domain}.${tld}...`)
+            res[vendor] = await installed[vendor](domain, tld)
+                .then(e => e)
+                .catch(() => [])
+        }
         return res
     }
 }
